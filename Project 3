@@ -1,0 +1,270 @@
+#include <iostream>
+#include <unordered_map>
+#include <string>
+#include <vector>
+
+
+
+class GameState;
+class GamePiece {
+public:
+  // Constructors
+  GamePiece(const std::string player,const std::string type, GameState* game_state);
+  GamePiece(const GamePiece& other);
+  
+  // Destructor
+  ~GamePiece();
+  
+  // Getter functions
+  std::string GetPlayer() const;
+  std::string GetType() const;
+  int GetPower() const ;
+  int GetSpeed() const;
+  
+  // Comparison operators
+  bool operator==(const GamePiece& other) const;
+  bool operator!=(const GamePiece& other) const;
+  bool operator<(const GamePiece& other) const;
+  bool operator>(const GamePiece& other) const;
+  bool operator<=(const GamePiece& other) const;
+  bool operator>=(const GamePiece& other) const;
+  
+  // Assignment operator
+  GamePiece& operator=(const GamePiece& other);
+  
+  // Stream operator
+  friend std::ostream& operator<<(std::ostream& os, const GamePiece& piece);
+  
+
+
+private:
+    std::string Player;
+    std::string Type;
+  GameState* Game_State;
+};
+class GameState {
+public:
+    // Default constructor
+    GameState() {}
+    
+    // Member functions
+    void AddPiece(GamePiece* piece);
+    void RemovePiece(GamePiece* piece);
+    int NumPieces() const;
+    int NumPieces(const std::string player) const;
+    int NumPieces(const std::string player, std::string type) const;
+    int CalculateWizardSpeed(std::string name);
+    
+
+
+private:
+    std::unordered_map<std::string, std::vector<GamePiece*>> PieceData;
+};
+
+
+GamePiece::GamePiece(std::string player, std::string type, GameState* game_state)
+{
+    Player = player;
+    Type = type;
+    Game_State = game_state;
+    Game_State->AddPiece(this);
+}
+GamePiece::GamePiece(const GamePiece& other)
+{
+    Player = other.Player;
+    Type = other.Type;
+    Game_State = other.Game_State;
+    Game_State->AddPiece(this);
+}
+
+// Destructor
+GamePiece::~GamePiece()
+{
+    Game_State->RemovePiece(this);
+    
+}
+
+// Getter functions
+std::string GamePiece::GetPlayer() const
+{
+    return Player;
+}
+std::string GamePiece::GetType() const
+{
+    return Type;
+}
+
+int GamePiece::GetPower() const
+{
+    if(Type == "Warrior")
+    {
+        return 5;
+    }
+    else if (Type == "Scout")
+    {
+        return 1;
+    }
+    else if(Type == "Wizard")
+    {
+        return Game_State->NumPieces(Player, "Wizard");
+    }
+    return 0;
+}
+int GamePiece::GetSpeed() const
+{
+    int speed = 0;
+    if (Type == "Warrior")
+    {
+        speed = 2;
+    }
+    else if (Type == "Scout")
+    {
+        speed = 8;
+    }
+    else if (Type == "Wizard")
+    {
+        speed = Game_State->CalculateWizardSpeed(Player);
+    }
+    return speed;
+}
+
+// Comparison operators
+bool GamePiece::operator==(const GamePiece& other) const
+{
+    return GetPower() == other.GetPower() && GetSpeed() == other.GetSpeed();
+}
+bool GamePiece::operator!=(const GamePiece& other) const
+{
+    return !(*this == other);
+}
+bool GamePiece::operator<(const GamePiece& other) const
+{
+    if (GetPower() != other.GetPower())
+        return GetPower() < other.GetPower();
+    return GetSpeed() < other.GetSpeed();
+}
+bool GamePiece::operator>(const GamePiece& other) const
+{
+    return other < *this;
+}
+bool GamePiece::operator<=(const GamePiece& other) const
+{
+    return !(*this > other);
+}
+bool GamePiece::operator>=(const GamePiece& other) const
+{
+    return !(*this < other);
+}
+
+// Assignment operator
+GamePiece& GamePiece::operator=(const GamePiece& other)
+{
+    Game_State->RemovePiece(this);
+    Player = other.Player;
+    Type = other.Type;
+    Game_State = other.Game_State;
+    Game_State->AddPiece(this);
+    return *this;
+}
+
+// Stream operator
+std::ostream& operator<<(std::ostream& os, const GamePiece& piece)
+{
+    os << "(" << piece.Player << "," << piece.Type << "," << piece.GetPower()
+    << "," << piece.GetSpeed() << ")";
+    return os;
+}
+
+
+int GameState::NumPieces() const
+{
+    int count = 0;
+    for(auto const& x : PieceData)
+    {
+        count += x.second.size();
+    }
+    return count;
+}
+int GameState::NumPieces(const std::string player) const
+{
+    if (PieceData.count(player) == 0)
+    {
+    // If not, return 0
+    return 0;
+    }
+  int total_num_of_pieces = 0;
+  for(auto const& [name, piece] : PieceData)
+  {
+    if(name == player)
+    {
+      total_num_of_pieces = piece.size();
+    }
+  }
+  return total_num_of_pieces;
+}
+int GameState::NumPieces(const std::string name,const std::string kind) const
+{
+    if (PieceData.count(name) == 0)
+    {
+        // If not, return 0
+        return 0;
+    }
+    
+    int count = 0;
+    std::vector<GamePiece*> player_piece = PieceData.at(name);
+    for(auto const& piece : player_piece)
+    {
+        if(piece->GetType() == kind)
+        {
+            count += 1;
+        }
+    }
+    return count;
+}
+void GameState::AddPiece(GamePiece* piece)
+{
+// Add the piece to the vector of pieces for this player
+    const auto player_name = piece->GetPlayer();
+    PieceData[player_name].push_back(piece);
+}
+
+// Helper function for removing a piece from the game
+void GameState::RemovePiece(GamePiece* piece)
+{
+  // Get the player name and piece type for the provided piece
+  const auto player_name = piece->GetPlayer();
+  const auto piece_type = piece->GetType();
+
+  // Check if the provided player name exists in the map
+  if (PieceData.count(player_name) == 0) {
+    // If not, return immediately
+    return;
+  }
+
+  // Create an iterator to the vector of pieces for the provided
+  // player name
+  auto& pieces = PieceData.at(player_name);
+
+  // Iterate over the vector of pieces and remove any pieces that
+  // match the provided piece
+  pieces.erase(std::remove(pieces.begin(), pieces.end(), piece), pieces.end());
+}
+//Helper function to calculate the Power of wizard
+int GameState::CalculateWizardSpeed(std::string player_name)
+{
+    int enemyWizards = 0;
+    for(const auto& [name,piece] : PieceData)
+    {
+        if(player_name != name)
+        {
+            for(const auto& data : piece)
+            {
+                if(data->GetType() == "Wizard")
+                {
+                    enemyWizards += 1;
+                }
+            }
+        }
+    }
+    return std::max(1, 12-enemyWizards);
+}
